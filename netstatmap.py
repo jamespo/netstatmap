@@ -12,8 +12,10 @@ import sys
 #  {'proto': 'tcp', 'recv_q': 0, 'send_q': 0, 'local_address': '127.0.0.1', 'foreign_address': '127.0.0.1', 'state': 'ESTABLISHED', 'kind': 'network', 'local_port': '34699', 'foreign_port': '47392', 'transport_protocol': 'tcp', 'network_protocol': 'ipv4', 'local_port_num': 34699, 'foreign_port_num': 47392}
 # {'proto': 'udp', 'recv_q': 0, 'send_q': 0, 'local_address': '0.0.0.0', 'foreign_address': '0.0.0.0', 'state': None, 'program_name': 'avahi-daemon: r', 'kind': 'network', 'pid': 677, 'local_port': '5353', 'foreign_port': '*', 'transport_protocol': 'udp', 'network_protocol': 'ipv4', 'local_port_num': 5353}, {'proto': 'udp', 'recv_q': 0, 'send_q': 0, 'local_address': '0.0.0.0', 'foreign_address': '0.0.0.0', 'state': None, 'program_name': 'avahi-daemon: r', 'kind': 'network', 'pid': 677, 'local_port': '42089', 'foreign_port': '*', 'transport_protocol': 'udp', 'network_protocol': 'ipv4', 'local_port_num': 42089}
 
-db = sqlite3.connect("file::memory")
-
+db = sqlite3.connect(":memory:")
+db_fields = ( "proto", "recv_q", "send_q", "local_address", "foreign_address",
+              "state", "program_name", "kind", "pid", "local_port",
+              "foreign_port", "transport_protocol", "network_protocol", "local_port_num" )
 
 def create_netstat_tables():
     cursor = db.cursor()
@@ -41,8 +43,10 @@ def create_netstat_tables():
 def insert_netstat(netstat_data):
     cursor = db.cursor()
     for conn in netstat_data:
-        print('pid: %s' %  conn['pid'])  # DEBUG
-        # TODO: set None entry for non-existent fields
+        # set None entry for non-existent fields
+        for db_field in db_fields:
+            if db_field not in conn:
+                conn[db_field] = None
         cursor.execute("""
         INSERT INTO network_connections (
         proto, recv_q, send_q, local_address, foreign_address,
