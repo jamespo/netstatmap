@@ -1,7 +1,7 @@
 #!/bin/env python3
 
 # netstatmap.py (c) 2025 jamespo [at] gmail [dot] com
-# USAGE: netstat -pan --inet | netstatmap.py
+# USAGE: netstat -pan --inet | netstatmap.py [group by field]
 
 import jc
 import sqlite3
@@ -18,6 +18,7 @@ db_fields = ( "proto", "recv_q", "send_q", "local_address", "foreign_address",
               "foreign_port", "transport_protocol", "network_protocol", "local_port_num" )
 
 def create_netstat_tables():
+    """create table to store netstat connections"""
     cursor = db.cursor()
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS network_connections (
@@ -41,6 +42,7 @@ def create_netstat_tables():
 
 
 def insert_netstat(netstat_data):
+    """insert netstat connections into table"""
     cursor = db.cursor()
     for conn in netstat_data:
         # set None entry for non-existent fields
@@ -61,11 +63,28 @@ def insert_netstat(netstat_data):
     db.commit()
 
 
+def display_netstat(group_by):
+    """display netstat results grouped by group_by"""
+    cursor = db.cursor()
+    if group_by and group_by in db_fields:
+        netstat_query = "SELECT %s, count(id), * FROM network_connections GROUP BY %s" % \
+            (group_by, group_by)
+    else:
+        netstat_query = "SELECT * FROM network_connections"
+    for row in cursor.execute(netstat_query):
+        print(row)
+
+
 def main():
-    netstat_in = str(sys.stdin.read())
+    try:
+        group_by = sys.argv[1]
+    except:
+        group_by = None
+    netstat_in = sys.stdin.read()
     create_netstat_tables()
     netstat_data = jc.parse('netstat', netstat_in)
     insert_netstat(netstat_data)
+    display_netstat(group_by)
 
     # print(data)
     # TODO: put into db
