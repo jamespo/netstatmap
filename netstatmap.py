@@ -4,15 +4,16 @@
 # USAGE: netstat -pan --inet | netstatmap.py [group by field]
 
 import jc
+import os
+from rich.console import Console
+from rich.table import Table
 import sqlite3
 import sys
 
-# {'proto': 'udp', 'recv_q': 0, 'send_q': 0, 'local_address': '127.0.0.1', 'foreign_address': '0.0.0.0', 'state': None, 'kind': 'network', 'local_port': '972', 'foreign_port': '*', 'transport_protocol': 'udp', 'network_protocol': 'ipv4', 'local_port_num': 972}
-# {'proto': 'tcp', 'recv_q': 0, 'send_q': 0, 'local_address': '0.0.0.0', 'foreign_address': '0.0.0.0', 'state': 'LISTEN', 'kind': 'network', 'local_port': '22', 'foreign_port': '*', 'transport_protocol': 'tcp', 'network_protocol': 'ipv4', 'local_port_num': 22}
-#  {'proto': 'tcp', 'recv_q': 0, 'send_q': 0, 'local_address': '127.0.0.1', 'foreign_address': '127.0.0.1', 'state': 'ESTABLISHED', 'kind': 'network', 'local_port': '34699', 'foreign_port': '47392', 'transport_protocol': 'tcp', 'network_protocol': 'ipv4', 'local_port_num': 34699, 'foreign_port_num': 47392}
-# {'proto': 'udp', 'recv_q': 0, 'send_q': 0, 'local_address': '0.0.0.0', 'foreign_address': '0.0.0.0', 'state': None, 'program_name': 'avahi-daemon: r', 'kind': 'network', 'pid': 677, 'local_port': '5353', 'foreign_port': '*', 'transport_protocol': 'udp', 'network_protocol': 'ipv4', 'local_port_num': 5353}, {'proto': 'udp', 'recv_q': 0, 'send_q': 0, 'local_address': '0.0.0.0', 'foreign_address': '0.0.0.0', 'state': None, 'program_name': 'avahi-daemon: r', 'kind': 'network', 'pid': 677, 'local_port': '42089', 'foreign_port': '*', 'transport_protocol': 'udp', 'network_protocol': 'ipv4', 'local_port_num': 42089}
+DEBUG = os.getenv('NSMDEBUG')
 
 db = sqlite3.connect(":memory:")
+# TODO: get via names = [description[0] for description in cursor.description]
 db_fields = ( "proto", "recv_q", "send_q", "local_address", "foreign_address",
               "state", "program_name", "kind", "pid", "local_port",
               "foreign_port", "transport_protocol", "network_protocol", "local_port_num" )
@@ -66,13 +67,31 @@ def insert_netstat(netstat_data):
 def display_netstat(group_by):
     """display netstat results grouped by group_by"""
     cursor = db.cursor()
-    if group_by and group_by in db_fields:
-        netstat_query = "SELECT %s, count(id), * FROM network_connections GROUP BY %s" % \
-            (group_by, group_by)
+    if group_by:
+        netstat_query = """
+        SELECT count(id) as num_conns, %s, local_address, foreign_address
+        FROM network_connections
+        GROUP BY %s
+        ORDER BY num_conns DESC
+        """ % (group_by, group_by)
     else:
         netstat_query = "SELECT * FROM network_connections"
-    for row in cursor.execute(netstat_query):
-        print(row)
+    netstat_rows = list(cursor.execute(netstat_query))
+    netstat_header = [description[0] for description in cursor.description]
+    render_rich_table(netstat_header, netstat_rows)
+
+
+def render_rich_table(header, rows):
+    """display netstat results in console table"""
+    table = Table()
+    for column in header:
+        table.add_column(column)
+    for row in rows:
+        strrow = [str(field) for field in row]
+        #print(strrow)
+        table.add_row(*strrow)
+    console = Console()
+    console.print(table)
 
 
 def main():
@@ -83,6 +102,8 @@ def main():
     netstat_in = sys.stdin.read()
     create_netstat_tables()
     netstat_data = jc.parse('netstat', netstat_in)
+    if DEBUG:
+        print(netstat_data)
     insert_netstat(netstat_data)
     display_netstat(group_by)
 
