@@ -68,15 +68,12 @@ def insert_netstat(netstat_data):
 def display_netstat(group_by, fields):
     """display netstat results grouped by group_by"""
     cursor = db.cursor()
-    if group_by:
-        netstat_query = """
-        SELECT count(id) as num_conns, %s
-        FROM network_connections
-        GROUP BY %s
-        ORDER BY num_conns DESC
-        """ % (fields, group_by)
-    else:
-        netstat_query = "SELECT * FROM network_connections"
+    netstat_query = """
+    SELECT count(id) as num_conns, %s
+    FROM network_connections
+    GROUP BY %s
+    ORDER BY num_conns DESC
+    """ % (fields, group_by)
     netstat_rows = list(cursor.execute(netstat_query))
     netstat_header = [description[0] for description in cursor.description]
     render_rich_table(netstat_header, netstat_rows)
@@ -98,14 +95,15 @@ def render_rich_table(header, rows):
 def getargs():
     '''parse CL args'''
     parser = argparse.ArgumentParser()
-    parser.add_argument("-f", "--fields", default="program_name,foreign_address",
-                        help="fields to return")
+    parser.add_argument("-f", "--fields", help="fields to return")
     parser.add_argument("-g", "--groupby", default="program_name,foreign_address",
                         help="fields to group by")
     parser.add_argument("-o", "--output", default="txt",
                         choices=['txt', 'graph'], type=str.lower,
                         help="output (txt|graph)")
     args = parser.parse_args()
+    if args.fields is None:
+        args.fields = args.groupby
     return args
 
 
