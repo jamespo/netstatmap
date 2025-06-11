@@ -3,6 +3,7 @@
 # netstatmap.py (c) 2025 jamespo [at] gmail [dot] com
 # USAGE: netstat -pan --inet | netstatmap.py [group by field]
 
+import argparse
 import jc
 import os
 from rich.console import Console
@@ -64,16 +65,16 @@ def insert_netstat(netstat_data):
     db.commit()
 
 
-def display_netstat(group_by):
+def display_netstat(group_by, fields):
     """display netstat results grouped by group_by"""
     cursor = db.cursor()
     if group_by:
         netstat_query = """
-        SELECT count(id) as num_conns, %s, local_address, foreign_address
+        SELECT count(id) as num_conns, %s
         FROM network_connections
         GROUP BY %s
         ORDER BY num_conns DESC
-        """ % (group_by, group_by)
+        """ % (fields, group_by)
     else:
         netstat_query = "SELECT * FROM network_connections"
     netstat_rows = list(cursor.execute(netstat_query))
@@ -94,21 +95,31 @@ def render_rich_table(header, rows):
     console.print(table)
 
 
+def getargs():
+    '''parse CL args'''
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-f", "--fields", default="program_name,foreign_address",
+                        help="fields to return")
+    parser.add_argument("-g", "--groupby", default="program_name,foreign_address",
+                        help="fields to group by")
+    parser.add_argument("-o", "--output", default="txt",
+                        choices=['txt', 'graph'], type=str.lower,
+                        help="output (txt|graph)")
+    args = parser.parse_args()
+    return args
+
+
 def main():
-    try:
-        group_by = sys.argv[1]
-    except:
-        group_by = None
+    args = getargs()
+    if DEBUG:
+        print(args)
     netstat_in = sys.stdin.read()
     create_netstat_tables()
     netstat_data = jc.parse('netstat', netstat_in)
     if DEBUG:
         print(netstat_data)
     insert_netstat(netstat_data)
-    display_netstat(group_by)
-
-    # print(data)
-    # TODO: put into db
+    display_netstat(args.groupby, args.fields)
 
 
 if __name__ == "__main__":
