@@ -3,6 +3,11 @@ netstatmap
 
 Display summary of network connections
 
+Install
+-------
+
+Requires rich & jc pypi modules
+
 Usage
 -----
 

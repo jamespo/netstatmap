@@ -14,7 +14,7 @@ import sys
 DEBUG = os.getenv('NSMDEBUG')
 
 db = sqlite3.connect(":memory:")
-# TODO: get via names = [description[0] for description in cursor.description]
+# TODO: get via names = [description[0] for description in cursor.description] ???
 db_fields = ( "proto", "recv_q", "send_q", "local_address", "foreign_address",
               "state", "program_name", "kind", "pid", "local_port",
               "foreign_port", "transport_protocol", "network_protocol", "local_port_num" )
